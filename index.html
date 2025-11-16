@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Massive Darkness 2 – Loot Helper</title>
   <style>
     * {
@@ -65,7 +66,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 190px;
+      min-height: 230px;
       transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s ease;
     }
 
@@ -109,14 +110,15 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
+      margin-bottom: 0.6rem;
     }
 
     .label {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: #6b7280;
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.3rem;
     }
 
     .card-name {
@@ -127,10 +129,49 @@
       align-items: center;
     }
 
+    /* Simple draw animation */
+    .card-name.draw-anim {
+      animation: draw-pop 0.35s ease-out;
+    }
+
+    @keyframes draw-pop {
+      0% { transform: scale(0.9); opacity: 0; }
+      40% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     .deck-footer {
-      margin-top: 0.8rem;
+      margin-top: 0.4rem;
       font-size: 0.8rem;
       color: #6b7280;
+    }
+
+    .history {
+      margin-top: 0.4rem;
+      font-size: 0.8rem;
+    }
+
+    .history-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      margin-bottom: 0.2rem;
+    }
+
+    .history-list {
+      list-style: none;
+      margin: 0;
+      padding-left: 0;
+      max-height: 5.8em;
+      overflow: hidden;
+    }
+
+    .history-list li {
+      line-height: 1.2;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
     }
 
     .deck.empty {
@@ -146,9 +187,72 @@
       background: #1f2937;
     }
 
+    /* Tablet & small desktop */
     @media (max-width: 800px) {
+      body {
+        padding: 1.5rem 1.2rem;
+      }
+
       .decks {
         grid-template-columns: 1fr;
+        max-width: 520px;
+      }
+    }
+
+    /* iPhone portrait and similar narrow phones */
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem;
+      }
+
+      h1 {
+        font-size: 1.35rem;
+        margin-bottom: 0.8rem;
+      }
+
+      .controls {
+        margin-bottom: 1.2rem;
+      }
+
+      button {
+        width: 100%;
+        max-width: 320px;
+        font-size: 0.95rem;
+      }
+
+      .decks {
+        gap: 1rem;
+      }
+
+      .deck {
+        padding: 0.85rem 0.9rem;
+        min-height: 210px;
+        border-radius: 0.9rem;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+      }
+
+      .deck-title {
+        font-size: 1rem;
+      }
+
+      .deck-count {
+        font-size: 0.8rem;
+      }
+
+      .label {
+        font-size: 0.75rem;
+      }
+
+      .card-name {
+        font-size: 0.95rem;
+      }
+
+      .history {
+        font-size: 0.75rem;
+      }
+
+      .history-title {
+        font-size: 0.7rem;
       }
     }
   </style>
@@ -171,6 +275,10 @@
         <div class="label">Last card</div>
         <div class="card-name" id="last-common">Click to draw</div>
       </div>
+      <div class="history">
+        <div class="history-title">Last 5 draws</div>
+        <ul class="history-list" id="history-common"></ul>
+      </div>
       <div class="deck-footer">Standard loot, e.g. level 1 weapons and armor.</div>
     </div>
 
@@ -184,6 +292,10 @@
         <div class="label">Last card</div>
         <div class="card-name" id="last-rare">Click to draw</div>
       </div>
+      <div class="history">
+        <div class="history-title">Last 5 draws</div>
+        <ul class="history-list" id="history-rare"></ul>
+      </div>
       <div class="deck-footer">Stronger loot with better effects.</div>
     </div>
 
@@ -196,6 +308,10 @@
       <div class="deck-body">
         <div class="label">Last card</div>
         <div class="card-name" id="last-epic">Click to draw</div>
+      </div>
+      <div class="history">
+        <div class="history-title">Last 5 draws</div>
+        <ul class="history-list" id="history-epic"></ul>
       </div>
       <div class="deck-footer">Top-tier loot for the wildest moments.</div>
     </div>
@@ -278,6 +394,13 @@
       epic: []
     };
 
+    // Track history of last 5 draws for each deck
+    let histories = {
+      common: [],
+      rare: [],
+      epic: []
+    };
+
     function shuffle(array) {
       const arr = [...array];
       for (let i = arr.length - 1; i > 0; i--) {
@@ -296,6 +419,14 @@
       document.getElementById("last-common").textContent = "Click to draw";
       document.getElementById("last-rare").textContent = "Click to draw";
       document.getElementById("last-epic").textContent = "Click to draw";
+
+      // Reset histories
+      histories.common = [];
+      histories.rare = [];
+      histories.epic = [];
+      updateHistory("common");
+      updateHistory("rare");
+      updateHistory("epic");
 
       updateCountsAndState();
     }
@@ -322,18 +453,48 @@
       });
     }
 
+    function updateHistory(deckName) {
+      const listEl = document.getElementById("history-" + deckName);
+      const items = histories[deckName];
+
+      listEl.innerHTML = "";
+      items.forEach(name => {
+        const li = document.createElement("li");
+        li.textContent = name;
+        listEl.appendChild(li);
+      });
+    }
+
+    function triggerDrawAnimation(deckName) {
+      const lastEl = document.getElementById("last-" + deckName);
+      lastEl.classList.remove("draw-anim");
+      // Force reflow so animation can retrigger
+      void lastEl.offsetWidth;
+      lastEl.classList.add("draw-anim");
+    }
+
     function drawFromDeck(deckName) {
       const deckArray = decks[deckName];
+      const lastEl = document.getElementById("last-" + deckName);
+
       if (!deckArray || deckArray.length === 0) {
-        const lastEl = document.getElementById("last-" + deckName);
         lastEl.textContent = "No cards left – shuffle again.";
         return;
       }
 
       // Draw top card (last in array)
       const card = deckArray.pop();
-      const lastEl = document.getElementById("last-" + deckName);
       lastEl.textContent = card.name;
+
+      // Update history (most recent first, max 5)
+      histories[deckName].unshift(card.name);
+      if (histories[deckName].length > 5) {
+        histories[deckName].pop();
+      }
+      updateHistory(deckName);
+
+      // Animate draw
+      triggerDrawAnimation(deckName);
 
       updateCountsAndState();
     }
