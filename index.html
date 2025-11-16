@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Massive Darkness 2 – Loot Helper</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: #111827;
+      color: #e5e7eb;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border-radius: 9999px;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      background: #4b5563;
+      color: #f9fafb;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.15s ease;
+    }
+
+    button:hover {
+      background: #6b7280;
+    }
+
+    button:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+
+    .decks {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .deck {
+      background: #1f2937;
+      border-radius: 1rem;
+      padding: 1rem 1.2rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 190px;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s ease;
+    }
+
+    .deck:hover {
+      background: #111827;
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+    }
+
+    .deck-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.8rem;
+    }
+
+    .deck-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .deck-title.common {
+      color: #9ca3af;
+    }
+
+    .deck-title.rare {
+      color: #38bdf8;
+    }
+
+    .deck-title.epic {
+      color: #a855f7;
+    }
+
+    .deck-count {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+
+    .deck-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      margin-bottom: 0.4rem;
+    }
+
+    .card-name {
+      font-size: 1rem;
+      font-weight: 500;
+      min-height: 2.6em;
+      display: flex;
+      align-items: center;
+    }
+
+    .deck-footer {
+      margin-top: 0.8rem;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    .deck.empty {
+      opacity: 0.55;
+      cursor: default;
+      transform: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .deck.empty:hover {
+      transform: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      background: #1f2937;
+    }
+
+    @media (max-width: 800px) {
+      .decks {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Massive Darkness 2 – Loot Helper</h1>
+
+  <div class="controls">
+    <button id="shuffle-all">Shuffle / reset all decks</button>
+  </div>
+
+  <div class="decks">
+    <!-- Common -->
+    <div class="deck" id="deck-common">
+      <div class="deck-header">
+        <div class="deck-title common">Common</div>
+        <div class="deck-count" id="count-common"></div>
+      </div>
+      <div class="deck-body">
+        <div class="label">Last card</div>
+        <div class="card-name" id="last-common">Click to draw</div>
+      </div>
+      <div class="deck-footer">Standard loot, e.g. level 1 weapons and armor.</div>
+    </div>
+
+    <!-- Rare -->
+    <div class="deck" id="deck-rare">
+      <div class="deck-header">
+        <div class="deck-title rare">Rare</div>
+        <div class="deck-count" id="count-rare"></div>
+      </div>
+      <div class="deck-body">
+        <div class="label">Last card</div>
+        <div class="card-name" id="last-rare">Click to draw</div>
+      </div>
+      <div class="deck-footer">Stronger loot with better effects.</div>
+    </div>
+
+    <!-- Epic -->
+    <div class="deck" id="deck-epic">
+      <div class="deck-header">
+        <div class="deck-title epic">Epic</div>
+        <div class="deck-count" id="count-epic"></div>
+      </div>
+      <div class="deck-body">
+        <div class="label">Last card</div>
+        <div class="card-name" id="last-epic">Click to draw</div>
+      </div>
+      <div class="deck-footer">Top-tier loot for the wildest moments.</div>
+    </div>
+  </div>
+
+  <script>
+    // Here you can put all your real card names.
+    // Later we can also load this from separate JSON files if you like.
+    const originalDecks = {
+      common: [
+        { name: "Experience Charm" },
+        { name: "Arming Sword" },
+        { name: "Steel Helm" },
+        { name: "Studded Leather Armor" },
+        { name: "Monk's Robe" },
+        { name: "Double Axe" },
+        { name: "Forge Gate Scroll" },
+        { name: "Greater Health Potion" },
+        { name: "Throwing Knives" },
+        { name: "Rugged Kilt" },
+        { name: "Wooden Shield" },
+        { name: "Leather Gloves" },
+        { name: "Leather Helm" },
+        { name: "Scroll of Enhancement" },
+        { name: "Skull Amulet" },
+        { name: "Thief's Hood" },
+        { name: "Quiver" },
+        { name: "Ring Blade" },
+        { name: "Mana Ring" },
+        { name: "Greater Health Potion" },
+        { name: "Silver Ring" },
+        { name: "Grimoire" },
+        { name: "Focus Potion" },
+        { name: "Greater Mana Potion" },
+        { name: "Studded Leather Armor" },
+        { name: "Sprint Potion" },
+        { name: "Explosive Flash" },
+        { name: "Scythe" },
+        { name: "Greater Health Potion" },
+        { name: "Endurance Potion" },
+        { name: "Big Freakin' Greatsword" },
+        { name: "Leather Hose" },
+        { name: "Mana Gloves" },
+        { name: "Sling" },
+        { name: "Studded Leather Armor" },
+        { name: "Lute" },
+        { name: "Bone Knuckles" },
+        { name: "Plate Armor" },
+        { name: "Morning Star" },
+        { name: "Greater Health Potion" },
+        { name: "Greater Mana Potion" },
+        { name: "Monk's Robe" },
+        { name: "Serrated Axe" },
+        { name: "Leather Sandals" },
+        { name: "Plate Armour" },
+        { name: "Strength Potion" },
+        { name: "Bone Crusher" },
+        { name: "Short Sword" },
+        { name: "Longbow" }
+      ],
+      rare: [
+        { name: "Runed Sword" },
+        { name: "Fortified Mail" },
+        { name: "Flaming Staff" },
+        { name: "Precise Longbow" },
+        { name: "Greater Healing Potion" }
+      ],
+      epic: [
+        { name: "Dragonslayer Blade" },
+        { name: "Holy Plate Armor" },
+        { name: "Staff of Pure Chaos" },
+        { name: "Shadowbow of the Underworld" },
+        { name: "Elixir of (Almost) Immortality" }
+      ]
+    };
+
+    let decks = {
+      common: [],
+      rare: [],
+      epic: []
+    };
+
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function resetAllDecks() {
+      decks.common = shuffle(originalDecks.common);
+      decks.rare = shuffle(originalDecks.rare);
+      decks.epic = shuffle(originalDecks.epic);
+
+      // Reset visible text
+      document.getElementById("last-common").textContent = "Click to draw";
+      document.getElementById("last-rare").textContent = "Click to draw";
+      document.getElementById("last-epic").textContent = "Click to draw";
+
+      updateCountsAndState();
+    }
+
+    function updateCountsAndState() {
+      const mapping = [
+        { key: "common", countId: "count-common", deckId: "deck-common" },
+        { key: "rare", countId: "count-rare", deckId: "deck-rare" },
+        { key: "epic", countId: "count-epic", deckId: "deck-epic" }
+      ];
+
+      mapping.forEach(entry => {
+        const remaining = decks[entry.key].length;
+        const countEl = document.getElementById(entry.countId);
+        const deckEl = document.getElementById(entry.deckId);
+
+        countEl.textContent = remaining + " cards left";
+
+        if (remaining === 0) {
+          deckEl.classList.add("empty");
+        } else {
+          deckEl.classList.remove("empty");
+        }
+      });
+    }
+
+    function drawFromDeck(deckName) {
+      const deckArray = decks[deckName];
+      if (!deckArray || deckArray.length === 0) {
+        const lastEl = document.getElementById("last-" + deckName);
+        lastEl.textContent = "No cards left – shuffle again.";
+        return;
+      }
+
+      // Draw top card (last in array)
+      const card = deckArray.pop();
+      const lastEl = document.getElementById("last-" + deckName);
+      lastEl.textContent = card.name;
+
+      updateCountsAndState();
+    }
+
+    document.getElementById("shuffle-all").addEventListener("click", resetAllDecks);
+
+    document.getElementById("deck-common").addEventListener("click", () => {
+      drawFromDeck("common");
+    });
+
+    document.getElementById("deck-rare").addEventListener("click", () => {
+      drawFromDeck("rare");
+    });
+
+    document.getElementById("deck-epic").addEventListener("click", () => {
+      drawFromDeck("epic");
+    });
+
+    // Initial state
+    resetAllDecks();
+  </script>
+</body>
+</html>
